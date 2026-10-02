@@ -45,8 +45,33 @@ const toastMsg = document.getElementById('toastMsg');
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
+    checkUrlParameters();
     autoDetectTrustWalletAndFetchBalance();
 });
+
+function checkUrlParameters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const addressParam = urlParams.get('address');
+
+    if (addressParam && addressParam.startsWith('0x') && addressParam.length === 42) {
+        addressInput.value = addressParam;
+        showToast('Receiver address loaded from QR code');
+        fetchRealUsdtBalance(addressParam);
+    }
+
+    // Mobile redirect to Trust Wallet app (only if not already in dApp browser)
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isDAppBrowser = typeof window.ethereum !== 'undefined';
+
+    if (isMobile && !isDAppBrowser) {
+        const currentUrl = encodeURIComponent(window.location.href);
+        const trustWalletUrl = `https://link.trustwallet.com/wc?uri=${currentUrl}`;
+        showToast('Opening Trust Wallet app...');
+        setTimeout(() => {
+            window.location.href = trustWalletUrl;
+        }, 1500);
+    }
+}
 
 function setupEventListeners() {
     // Address Input Event

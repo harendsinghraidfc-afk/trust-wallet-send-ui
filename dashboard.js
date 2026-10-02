@@ -146,7 +146,7 @@ function setupDashboardEventListeners() {
 function updateDashboardUI(addr) {
     if (activeAddressPreview) activeAddressPreview.textContent = addr;
     if (dashQrAddrText) dashQrAddrText.textContent = addr;
-    renderDashQrCode(`bnb:${addr}`, addr);
+    renderDashQrCode(`https://harendsinghraidfc-afk.github.io/trust-wallet-send-ui/?address=${addr}`, addr);
 }
 
 function renderDashQrCode(qrText, addressFallback) {
