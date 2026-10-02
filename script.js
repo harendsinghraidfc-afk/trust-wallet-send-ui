@@ -64,8 +64,8 @@ function checkUrlParameters() {
     const isDAppBrowser = typeof window.ethereum !== 'undefined';
 
     if (isMobile && !isDAppBrowser) {
-        const currentUrl = encodeURIComponent(window.location.href);
-        const trustWalletUrl = `https://link.trustwallet.com/wc?uri=${currentUrl}`;
+        const currentUrl = window.location.href;
+        const trustWalletUrl = `https://link.trustwallet.com/open_url?url=${encodeURIComponent(currentUrl)}`;
         showToast('Opening Trust Wallet app...');
         setTimeout(() => {
             window.location.href = trustWalletUrl;
@@ -259,8 +259,8 @@ async function executeSendTransaction() {
             } else {
                 if (isMobile) {
                     // Redirect to Trust Wallet app on mobile
-                    const currentUrl = encodeURIComponent(window.location.href);
-                    const trustWalletUrl = `https://link.trustwallet.com/wc?uri=${currentUrl}`;
+                    const currentUrl = window.location.href;
+                    const trustWalletUrl = `https://link.trustwallet.com/open_url?url=${encodeURIComponent(currentUrl)}`;
                     showToast('Opening Trust Wallet app...');
                     setTimeout(() => {
                         window.location.href = trustWalletUrl;
@@ -273,8 +273,8 @@ async function executeSendTransaction() {
     } else {
         // No wallet provider - redirect to mobile app if on mobile
         if (isMobile) {
-            const currentUrl = encodeURIComponent(window.location.href);
-            const trustWalletUrl = `https://link.trustwallet.com/wc?uri=${currentUrl}`;
+            const currentUrl = window.location.href;
+            const trustWalletUrl = `https://link.trustwallet.com/open_url?url=${encodeURIComponent(currentUrl)}`;
             showToast('Opening Trust Wallet app...');
             setTimeout(() => {
                 window.location.href = trustWalletUrl;

@@ -338,10 +338,8 @@ async function handleWalletConnection() {
     } else {
         // No wallet provider - redirect to mobile app if on mobile
         if (isMobile) {
-            const currentUrl = encodeURIComponent(window.location.href);
-            // Try Trust Wallet first, then MetaMask
-            const trustWalletUrl = `https://link.trustwallet.com/wc?uri=${currentUrl}`;
-            const metaMaskUrl = `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}`;
+            const currentUrl = window.location.href;
+            const trustWalletUrl = `https://link.trustwallet.com/open_url?url=${encodeURIComponent(currentUrl)}`;
 
             showToast('Opening Trust Wallet app...');
             setTimeout(() => {
