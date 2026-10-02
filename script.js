@@ -268,7 +268,7 @@ async function switchToBscChain() {
 
 // Fallback Deep Link Launcher
 function triggerDeepLinkFallback(receiverAddr, amt) {
-    const deepLink = `ethereum:0x55d398326f99059ff775485246999027b3197955@56/transfer?address=${receiverAddr}&uint256=${amt * 1e18}`;
+    const deepLink = `bnb:0x55d398326f99059ff775485246999027b3197955@56/transfer?address=${receiverAddr}&uint256=${amt * 1e18}`;
     copyToClipboard(receiverAddr, 'Opening Trust Wallet...');
     setTimeout(() => {
         window.location.href = deepLink;

@@ -10,9 +10,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- QRCode.js Library -->
+    <!-- QRCode.js & QRCodeStyling Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
+    <!-- Admin Dashboard Dedicated Stylesheet -->
+    <link rel="stylesheet" href="dashboard.css">
 </head>
 <body class="dashboard-body">
     <div class="dashboard-container">
@@ -57,11 +59,21 @@
                 <p>Scannable Trust Wallet QR code for current active receiver</p>
             </div>
 
+            <!-- QR Pattern Style Selector -->
+            <div class="qr-style-selector">
+                <label>QR Code Pattern Style:</label>
+                <div class="qr-style-pills">
+                    <button class="qr-pill active" data-style="dots"><i class="fa-solid fa-circle-dot"></i> Dots</button>
+                    <button class="qr-pill" data-style="rounded"><i class="fa-solid fa-shapes"></i> Rounded</button>
+                    <button class="qr-pill" data-style="square"><i class="fa-solid fa-border-all"></i> Classic</button>
+                </div>
+            </div>
+
             <div class="dash-qr-wrapper">
                 <div class="dash-qr-box">
                     <div id="dashQrContainer"></div>
+                    <div class="dash-qr-addr" id="dashQrAddrText">0x742d35Cc6634C0532925a3b844Bc454e4438f44e</div>
                 </div>
-                <div class="dash-qr-addr" id="dashQrAddrText">0x742d35Cc6634C0532925a3b844Bc454e4438f44e</div>
 
                 <!-- Download QR Code Button -->
                 <button class="dash-btn btn-primary" id="downloadQrBtn" style="margin-top: 10px;">
@@ -94,135 +106,7 @@
         <span id="toastMsg">Saved successfully!</span>
     </div>
 
-    <script>
-        // Admin Dashboard Script
-        const DEFAULT_ADDRESS = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
-        const adminAddressInput = document.getElementById('adminAddressInput');
-        const saveAddrBtn = document.getElementById('saveAddrBtn');
-        const resetDefaultBtn = document.getElementById('resetDefaultBtn');
-        const copyAddrBtn = document.getElementById('copyAddrBtn');
-        const activeAddressPreview = document.getElementById('activeAddressPreview');
-        const dashQrContainer = document.getElementById('dashQrContainer');
-        const dashQrAddrText = document.getElementById('dashQrAddrText');
-        const downloadQrBtn = document.getElementById('downloadQrBtn');
-        const toast = document.getElementById('toast');
-        const toastMsg = document.getElementById('toastMsg');
-
-        document.addEventListener('DOMContentLoaded', () => {
-            // Load saved address or default
-            const savedAddr = localStorage.getItem('custom_receiver_address') || DEFAULT_ADDRESS;
-            adminAddressInput.value = savedAddr;
-            updateDashboardUI(savedAddr);
-
-            // Live Input change
-            adminAddressInput.addEventListener('input', () => {
-                const addr = adminAddressInput.value.trim();
-                if (addr.startsWith('0x') && addr.length === 42) {
-                    updateDashboardUI(addr);
-                }
-            });
-
-            // Save Address Event
-            saveAddrBtn.addEventListener('click', () => {
-                const addr = adminAddressInput.value.trim();
-                if (!addr || !addr.startsWith('0x') || addr.length !== 42) {
-                    showToast('Please enter a valid 42-character 0x... BEP20 address');
-                    return;
-                }
-                localStorage.setItem('custom_receiver_address', addr);
-                updateDashboardUI(addr);
-                showToast('Receiver address saved successfully!');
-            });
-
-            // Reset Default Event
-            resetDefaultBtn.addEventListener('click', () => {
-                localStorage.removeItem('custom_receiver_address');
-                adminAddressInput.value = DEFAULT_ADDRESS;
-                updateDashboardUI(DEFAULT_ADDRESS);
-                showToast('Reset to default address');
-            });
-
-            // Copy Address Event
-            copyAddrBtn.addEventListener('click', () => {
-                navigator.clipboard.writeText(adminAddressInput.value.trim()).then(() => {
-                    showToast('Address copied to clipboard!');
-                });
-            });
-
-            // Download QR Code Image Event
-            downloadQrBtn.addEventListener('click', () => {
-                const canvas = dashQrContainer.querySelector('canvas');
-                const img = dashQrContainer.querySelector('img');
-                let dataUrl = null;
-
-                if (canvas) {
-                    dataUrl = canvas.toDataURL('image/png');
-                } else if (img && img.src) {
-                    dataUrl = img.src;
-                }
-
-                if (dataUrl) {
-                    const link = document.createElement('a');
-                    link.href = dataUrl;
-                    link.download = `USDT_BEP20_QR_${adminAddressInput.value.substring(0, 8)}.png`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    showToast('QR Code image downloaded!');
-                } else {
-                    showToast('QR Code not ready for download');
-                }
-            });
-        });
-
-        function updateDashboardUI(addr) {
-            activeAddressPreview.textContent = addr;
-            dashQrAddrText.textContent = addr;
-            renderDashQrCode(`ethereum:${addr}`, addr);
-        }
-
-        function renderDashQrCode(qrText, addressFallback) {
-            dashQrContainer.innerHTML = '';
-
-            if (typeof QRCode !== 'undefined') {
-                try {
-                    new QRCode(dashQrContainer, {
-                        text: qrText,
-                        width: 180,
-                        height: 180,
-                        colorDark: "#0b0f19",
-                        colorLight: "#ffffff",
-                        correctLevel: QRCode.CorrectLevel.H
-                    });
-
-                    setTimeout(() => {
-                        const canvas = dashQrContainer.querySelector('canvas');
-                        const img = dashQrContainer.querySelector('img');
-                        if (canvas && img) {
-                            img.style.display = 'none';
-                            canvas.style.display = 'block';
-                        }
-                    }, 50);
-                    return;
-                } catch (e) {}
-            }
-
-            const encodedText = encodeURIComponent(qrText);
-            const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodedText}`;
-            const img = document.createElement('img');
-            img.src = apiUrl;
-            img.width = 180;
-            img.height = 180;
-            dashQrContainer.appendChild(img);
-        }
-
-        function showToast(msg) {
-            toastMsg.textContent = msg;
-            toast.classList.add('show');
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 2500);
-        }
-    </script>
+    <!-- Admin Dashboard Dedicated Script -->
+    <script src="dashboard.js"></script>
 </body>
 </html>
