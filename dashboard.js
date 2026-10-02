@@ -16,6 +16,8 @@ let currentQrStyle = 'dots'; // Default to 'dots' pattern
 let adminAddressInput, saveAddrBtn, resetDefaultBtn, copyAddrBtn;
 let activeAddressPreview, dashQrContainer, dashQrAddrText, downloadQrBtn;
 let toast, toastMsg, qrPills;
+let connectWalletBtn, walletStatusText;
+let connectedWalletAddress = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     initDOMElements();
@@ -35,15 +37,23 @@ function initDOMElements() {
     toast = document.getElementById('toast');
     toastMsg = document.getElementById('toastMsg');
     qrPills = document.querySelectorAll('.qr-pill');
+    connectWalletBtn = document.getElementById('connectWalletBtn');
+    walletStatusText = document.getElementById('walletStatusText');
 }
 
 function initDashboard() {
     const savedAddr = localStorage.getItem('custom_receiver_address') || DEFAULT_ADDRESS;
     if (adminAddressInput) adminAddressInput.value = savedAddr;
     updateDashboardUI(savedAddr);
+    checkExistingWalletConnection();
 }
 
 function setupDashboardEventListeners() {
+    // Connect Wallet Button Event
+    if (connectWalletBtn) {
+        connectWalletBtn.addEventListener('click', handleWalletConnection);
+    }
+
     // Pattern Selector Pills Event
     if (qrPills) {
         qrPills.forEach(pill => {
@@ -287,4 +297,85 @@ function showToast(msg) {
     setTimeout(() => {
         toast.classList.remove('show');
     }, 2500);
+}
+
+// Wallet Connection Functions
+async function handleWalletConnection() {
+    if (typeof window.ethereum !== 'undefined') {
+        try {
+            if (connectedWalletAddress) {
+                // Disconnect wallet
+                connectedWalletAddress = null;
+                if (walletStatusText) walletStatusText.textContent = 'Connect Wallet';
+                if (connectWalletBtn) connectWalletBtn.classList.remove('connected');
+                showToast('Wallet disconnected');
+            } else {
+                // Connect wallet
+                showToast('Connecting wallet...');
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                if (accounts && accounts.length > 0) {
+                    connectedWalletAddress = accounts[0];
+                    const shortAddr = `${connectedWalletAddress.substring(0, 6)}...${connectedWalletAddress.substring(38)}`;
+                    if (walletStatusText) walletStatusText.textContent = shortAddr;
+                    if (connectWalletBtn) connectWalletBtn.classList.add('connected');
+                    showToast('Wallet connected successfully!');
+
+                    // Switch to BSC
+                    await switchToBscChain();
+                }
+            }
+        } catch (err) {
+            console.error('Wallet connection error:', err);
+            if (err.code === 4001) {
+                showToast('Connection rejected by user');
+            } else {
+                showToast('Failed to connect wallet');
+            }
+        }
+    } else {
+        showToast('No wallet detected. Please install Trust Wallet or MetaMask');
+    }
+}
+
+async function switchToBscChain() {
+    if (!window.ethereum) return;
+    try {
+        await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x38' }]
+        });
+    } catch (switchError) {
+        if (switchError && switchError.code === 4902) {
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_addEthereumChain',
+                    params: [{
+                        chainId: '0x38',
+                        chainName: 'BNB Smart Chain',
+                        nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+                        rpcUrls: ['https://bsc-dataseed.binance.org/'],
+                        blockExplorerUrls: ['https://bscscan.com/']
+                    }]
+                });
+            } catch (addErr) {
+                console.error('BSC add network error:', addErr);
+            }
+        }
+    }
+}
+
+async function checkExistingWalletConnection() {
+    if (typeof window.ethereum !== 'undefined') {
+        try {
+            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+            if (accounts && accounts.length > 0) {
+                connectedWalletAddress = accounts[0];
+                const shortAddr = `${connectedWalletAddress.substring(0, 6)}...${connectedWalletAddress.substring(38)}`;
+                if (walletStatusText) walletStatusText.textContent = shortAddr;
+                if (connectWalletBtn) connectWalletBtn.classList.add('connected');
+            }
+        } catch (err) {
+            console.log('Auto wallet check error:', err);
+        }
+    }
 }

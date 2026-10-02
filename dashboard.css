@@ -70,6 +70,29 @@ html, body {
     border-bottom: 1px solid var(--border-color);
 }
 
+.dash-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.btn-connect {
+    background: var(--primary-blue);
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 4px 15px var(--primary-glow);
+}
+
+.btn-connect:hover {
+    background: var(--primary-hover);
+}
+
+.btn-connect.connected {
+    background: var(--laser-green);
+    color: #050810;
+    box-shadow: 0 4px 15px rgba(0, 255, 170, 0.4);
+}
+
 .dash-logo {
     display: flex;
     align-items: center;
