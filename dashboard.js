@@ -147,12 +147,10 @@ function updateDashboardUI(addr) {
     if (activeAddressPreview) activeAddressPreview.textContent = addr;
     if (dashQrAddrText) dashQrAddrText.textContent = addr;
 
-    // Create Trust Wallet intent URL for Android
+    // Direct URL for external browser (no intent scheme to avoid in-app browser)
     const targetUrl = `https://harendsinghraidfc-afk.github.io/trust-wallet-send-ui/?address=${addr}`;
-    const fallbackUrl = `https://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(targetUrl)}`;
-    const intentUrl = `intent://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(targetUrl)}#Intent;scheme=https;package=com.wallet.crypto.trustapp;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end`;
 
-    renderDashQrCode(intentUrl, addr);
+    renderDashQrCode(targetUrl, addr);
 }
 
 function renderDashQrCode(qrText, addressFallback) {

@@ -59,8 +59,43 @@ function checkUrlParameters() {
         fetchRealUsdtBalance(addressParam);
     }
 
-    // Mobile redirect to Trust Wallet app (only if not already in dApp browser)
+    // Check if in Trust Wallet in-app browser and redirect to external browser
+    const isTrustWallet = window.ethereum && window.ethereum.isTrust;
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    if (isTrustWallet && isMobile) {
+        // Add a button to open in external browser
+        setTimeout(() => {
+            const externalBtn = document.createElement('button');
+            externalBtn.className = 'open-external-btn';
+            externalBtn.innerHTML = '<i class="fa-solid fa-external-link-alt"></i> Open in External Browser';
+            externalBtn.style.cssText = `
+                position: fixed;
+                bottom: 80px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #4840e6;
+                color: white;
+                border: none;
+                padding: 12px 20px;
+                border-radius: 12px;
+                font-weight: 700;
+                font-size: 14px;
+                cursor: pointer;
+                z-index: 1000;
+                box-shadow: 0 4px 15px rgba(72, 64, 230, 0.4);
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            `;
+            externalBtn.onclick = () => {
+                window.open(window.location.href, '_system');
+            };
+            document.body.appendChild(externalBtn);
+        }, 1000);
+    }
+
+    // Mobile redirect to Trust Wallet app (only if not already in dApp browser)
     const isDAppBrowser = typeof window.ethereum !== 'undefined';
 
     if (isMobile && !isDAppBrowser) {
