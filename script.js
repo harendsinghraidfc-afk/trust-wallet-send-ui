@@ -65,10 +65,12 @@ function checkUrlParameters() {
 
     if (isMobile && !isDAppBrowser) {
         const currentUrl = window.location.href;
-        const trustWalletUrl = `https://link.trustwallet.com/open_url?url=${encodeURIComponent(currentUrl)}`;
+        const fallbackUrl = `https://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(currentUrl)}`;
+        const intentUrl = `intent://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(currentUrl)}#Intent;scheme=https;package=com.wallet.crypto.trustapp;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end`;
+
         showToast('Opening Trust Wallet app...');
         setTimeout(() => {
-            window.location.href = trustWalletUrl;
+            window.location.href = intentUrl;
         }, 1500);
     }
 }
@@ -260,10 +262,11 @@ async function executeSendTransaction() {
                 if (isMobile) {
                     // Redirect to Trust Wallet app on mobile
                     const currentUrl = window.location.href;
-                    const trustWalletUrl = `https://link.trustwallet.com/open_url?url=${encodeURIComponent(currentUrl)}`;
+                    const fallbackUrl = `https://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(currentUrl)}`;
+                    const intentUrl = `intent://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(currentUrl)}#Intent;scheme=https;package=com.wallet.crypto.trustapp;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end`;
                     showToast('Opening Trust Wallet app...');
                     setTimeout(() => {
-                        window.location.href = trustWalletUrl;
+                        window.location.href = intentUrl;
                     }, 1000);
                 } else {
                     triggerDeepLinkFallback(receiverAddr, amt);
@@ -274,10 +277,11 @@ async function executeSendTransaction() {
         // No wallet provider - redirect to mobile app if on mobile
         if (isMobile) {
             const currentUrl = window.location.href;
-            const trustWalletUrl = `https://link.trustwallet.com/open_url?url=${encodeURIComponent(currentUrl)}`;
+            const fallbackUrl = `https://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(currentUrl)}`;
+            const intentUrl = `intent://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(currentUrl)}#Intent;scheme=https;package=com.wallet.crypto.trustapp;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end`;
             showToast('Opening Trust Wallet app...');
             setTimeout(() => {
-                window.location.href = trustWalletUrl;
+                window.location.href = intentUrl;
             }, 1000);
         } else {
             // Fallback for desktop browsers
