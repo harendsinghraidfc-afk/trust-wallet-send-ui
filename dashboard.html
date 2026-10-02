@@ -48,22 +48,6 @@
             </div>
         </div>
 
-        <!-- Shareable Link Generator Card -->
-        <div class="dash-card">
-            <div class="dash-card-header">
-                <h3><i class="fa-solid fa-link"></i> Shareable Client Payment Link</h3>
-                <p>Send this pre-filled link directly to clients or users</p>
-            </div>
-
-            <div class="dash-input-group">
-                <label for="shareableUrlInput">Generated Shareable Link</label>
-                <div class="dash-input-row">
-                    <input type="text" id="shareableUrlInput" readonly value="">
-                    <button class="dash-btn btn-primary" id="copyShareableBtn"><i class="fa-regular fa-copy"></i> Copy Link</button>
-                </div>
-            </div>
-        </div>
-
         <!-- Preview & Navigation Card -->
         <div class="dash-card">
             <div class="dash-card-header">
@@ -95,8 +79,6 @@
         const saveAddrBtn = document.getElementById('saveAddrBtn');
         const resetDefaultBtn = document.getElementById('resetDefaultBtn');
         const copyAddrBtn = document.getElementById('copyAddrBtn');
-        const shareableUrlInput = document.getElementById('shareableUrlInput');
-        const copyShareableBtn = document.getElementById('copyShareableBtn');
         const activeAddressPreview = document.getElementById('activeAddressPreview');
         const toast = document.getElementById('toast');
         const toastMsg = document.getElementById('toastMsg');
@@ -133,21 +115,10 @@
                     showToast('Address copied to clipboard!');
                 });
             });
-
-            // Copy Shareable Link Event
-            copyShareableBtn.addEventListener('click', () => {
-                navigator.clipboard.writeText(shareableUrlInput.value).then(() => {
-                    showToast('Shareable link copied!');
-                });
-            });
         });
 
         function updateDashboardUI(addr) {
             activeAddressPreview.textContent = addr;
-
-            // Build shareable link URL
-            const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/')) + '/index.html';
-            shareableUrlInput.value = `${baseUrl}?to=${addr}`;
         }
 
         function showToast(msg) {
