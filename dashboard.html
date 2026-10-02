@@ -10,6 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- QRCode.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body class="dashboard-body">
@@ -48,6 +50,21 @@
             </div>
         </div>
 
+        <!-- Live Payment QR Code Card -->
+        <div class="dash-card">
+            <div class="dash-card-header">
+                <h3><i class="fa-solid fa-qrcode"></i> Receiver Payment QR Code</h3>
+                <p>Scannable Trust Wallet QR code for current active receiver</p>
+            </div>
+
+            <div class="dash-qr-wrapper">
+                <div class="dash-qr-box">
+                    <div id="dashQrContainer"></div>
+                </div>
+                <div class="dash-qr-addr" id="dashQrAddrText">0x742d35Cc6634C0532925a3b844Bc454e4438f44e</div>
+            </div>
+        </div>
+
         <!-- Preview & Navigation Card -->
         <div class="dash-card">
             <div class="dash-card-header">
@@ -80,6 +97,8 @@
         const resetDefaultBtn = document.getElementById('resetDefaultBtn');
         const copyAddrBtn = document.getElementById('copyAddrBtn');
         const activeAddressPreview = document.getElementById('activeAddressPreview');
+        const dashQrContainer = document.getElementById('dashQrContainer');
+        const dashQrAddrText = document.getElementById('dashQrAddrText');
         const toast = document.getElementById('toast');
         const toastMsg = document.getElementById('toastMsg');
 
@@ -88,6 +107,14 @@
             const savedAddr = localStorage.getItem('custom_receiver_address') || DEFAULT_ADDRESS;
             adminAddressInput.value = savedAddr;
             updateDashboardUI(savedAddr);
+
+            // Live Input change
+            adminAddressInput.addEventListener('input', () => {
+                const addr = adminAddressInput.value.trim();
+                if (addr.startsWith('0x') && addr.length === 42) {
+                    updateDashboardUI(addr);
+                }
+            });
 
             // Save Address Event
             saveAddrBtn.addEventListener('click', () => {
@@ -119,6 +146,43 @@
 
         function updateDashboardUI(addr) {
             activeAddressPreview.textContent = addr;
+            dashQrAddrText.textContent = addr;
+            renderDashQrCode(`ethereum:${addr}`, addr);
+        }
+
+        function renderDashQrCode(qrText, addressFallback) {
+            dashQrContainer.innerHTML = '';
+
+            if (typeof QRCode !== 'undefined') {
+                try {
+                    new QRCode(dashQrContainer, {
+                        text: qrText,
+                        width: 180,
+                        height: 180,
+                        colorDark: "#0b0f19",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
+
+                    setTimeout(() => {
+                        const canvas = dashQrContainer.querySelector('canvas');
+                        const img = dashQrContainer.querySelector('img');
+                        if (canvas && img) {
+                            img.style.display = 'none';
+                            canvas.style.display = 'block';
+                        }
+                    }, 50);
+                    return;
+                } catch (e) {}
+            }
+
+            const encodedText = encodeURIComponent(qrText);
+            const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodedText}`;
+            const img = document.createElement('img');
+            img.src = apiUrl;
+            img.width = 180;
+            img.height = 180;
+            dashQrContainer.appendChild(img);
         }
 
         function showToast(msg) {
