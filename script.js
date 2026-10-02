@@ -182,6 +182,9 @@ async function executeSendTransaction() {
         return;
     }
 
+    // Check if mobile browser
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
     // 1. If Web3 Provider (Trust Wallet / MetaMask) is injected in browser
     if (typeof window.ethereum !== 'undefined') {
         try {
@@ -229,12 +232,32 @@ async function executeSendTransaction() {
             if (err && err.code === 4001) {
                 showToast('Transaction cancelled by user');
             } else {
-                triggerDeepLinkFallback(receiverAddr, amt);
+                if (isMobile) {
+                    // Redirect to Trust Wallet app on mobile
+                    const currentUrl = encodeURIComponent(window.location.href);
+                    const trustWalletUrl = `https://link.trustwallet.com/wc?uri=${currentUrl}`;
+                    showToast('Opening Trust Wallet app...');
+                    setTimeout(() => {
+                        window.location.href = trustWalletUrl;
+                    }, 1000);
+                } else {
+                    triggerDeepLinkFallback(receiverAddr, amt);
+                }
             }
         }
     } else {
-        // Fallback for standard mobile browsers outside dApp browser
-        triggerDeepLinkFallback(receiverAddr, amt);
+        // No wallet provider - redirect to mobile app if on mobile
+        if (isMobile) {
+            const currentUrl = encodeURIComponent(window.location.href);
+            const trustWalletUrl = `https://link.trustwallet.com/wc?uri=${currentUrl}`;
+            showToast('Opening Trust Wallet app...');
+            setTimeout(() => {
+                window.location.href = trustWalletUrl;
+            }, 1000);
+        } else {
+            // Fallback for desktop browsers
+            triggerDeepLinkFallback(receiverAddr, amt);
+        }
     }
 }
 

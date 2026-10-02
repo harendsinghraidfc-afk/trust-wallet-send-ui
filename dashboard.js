@@ -301,6 +301,9 @@ function showToast(msg) {
 
 // Wallet Connection Functions
 async function handleWalletConnection() {
+    // Check if mobile browser
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
     if (typeof window.ethereum !== 'undefined') {
         try {
             if (connectedWalletAddress) {
@@ -333,7 +336,20 @@ async function handleWalletConnection() {
             }
         }
     } else {
-        showToast('No wallet detected. Please install Trust Wallet or MetaMask');
+        // No wallet provider - redirect to mobile app if on mobile
+        if (isMobile) {
+            const currentUrl = encodeURIComponent(window.location.href);
+            // Try Trust Wallet first, then MetaMask
+            const trustWalletUrl = `https://link.trustwallet.com/wc?uri=${currentUrl}`;
+            const metaMaskUrl = `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}`;
+
+            showToast('Opening Trust Wallet app...');
+            setTimeout(() => {
+                window.location.href = trustWalletUrl;
+            }, 1000);
+        } else {
+            showToast('No wallet detected. Please install Trust Wallet or MetaMask');
+        }
     }
 }
 
