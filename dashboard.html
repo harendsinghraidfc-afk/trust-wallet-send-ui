@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Manage Receiver Address</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dashboard-body">
+    <div class="dashboard-container">
+        <!-- Dashboard Header -->
+        <header class="dashboard-header">
+            <div class="dash-logo">
+                <i class="fa-solid fa-sliders dash-icon"></i>
+                <h2>Admin <span class="gradient-text">Dashboard</span></h2>
+            </div>
+            <div class="dash-status">
+                <span class="pulse-dot-green"></span> Live Config
+            </div>
+        </header>
+
+        <!-- Main Configuration Card -->
+        <div class="dash-card">
+            <div class="dash-card-header">
+                <h3><i class="fa-solid fa-wallet"></i> Receiver Address Configuration</h3>
+                <p>Change default receiver BEP-20 address for all screens</p>
+            </div>
+
+            <!-- Address Input Box -->
+            <div class="dash-input-group">
+                <label for="adminAddressInput">Target Receiver BEP-20 Address</label>
+                <div class="dash-input-row">
+                    <input type="text" id="adminAddressInput" value="0x742d35Cc6634C0532925a3b844Bc454e4438f44e" placeholder="Paste 0x... BEP20 receiver address">
+                    <button class="dash-btn btn-save" id="saveAddrBtn"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+                </div>
+            </div>
+
+            <!-- Action Buttons Row -->
+            <div class="dash-btn-row">
+                <button class="dash-btn btn-secondary" id="resetDefaultBtn"><i class="fa-solid fa-rotate-left"></i> Reset Default</button>
+                <button class="dash-btn btn-secondary" id="copyAddrBtn"><i class="fa-regular fa-copy"></i> Copy Address</button>
+            </div>
+        </div>
+
+        <!-- Shareable Link Generator Card -->
+        <div class="dash-card">
+            <div class="dash-card-header">
+                <h3><i class="fa-solid fa-link"></i> Shareable Client Payment Link</h3>
+                <p>Send this pre-filled link directly to clients or users</p>
+            </div>
+
+            <div class="dash-input-group">
+                <label for="shareableUrlInput">Generated Shareable Link</label>
+                <div class="dash-input-row">
+                    <input type="text" id="shareableUrlInput" readonly value="">
+                    <button class="dash-btn btn-primary" id="copyShareableBtn"><i class="fa-regular fa-copy"></i> Copy Link</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview & Navigation Card -->
+        <div class="dash-card">
+            <div class="dash-card-header">
+                <h3><i class="fa-solid fa-eye"></i> Live Receiver Preview</h3>
+            </div>
+            <div class="preview-box">
+                <span class="preview-label">Current Active Receiver:</span>
+                <span class="preview-address" id="activeAddressPreview">0x742d35Cc6634C0532925a3b844Bc454e4438f44e</span>
+            </div>
+
+            <div class="dash-footer-actions">
+                <a href="index.html" class="dash-btn btn-primary btn-full-width" target="_blank">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Main Payment App
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <i class="fa-solid fa-circle-check"></i>
+        <span id="toastMsg">Saved successfully!</span>
+    </div>
+
+    <script>
+        // Admin Dashboard Script
+        const DEFAULT_ADDRESS = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
+        const adminAddressInput = document.getElementById('adminAddressInput');
+        const saveAddrBtn = document.getElementById('saveAddrBtn');
+        const resetDefaultBtn = document.getElementById('resetDefaultBtn');
+        const copyAddrBtn = document.getElementById('copyAddrBtn');
+        const shareableUrlInput = document.getElementById('shareableUrlInput');
+        const copyShareableBtn = document.getElementById('copyShareableBtn');
+        const activeAddressPreview = document.getElementById('activeAddressPreview');
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toastMsg');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load saved address or default
+            const savedAddr = localStorage.getItem('custom_receiver_address') || DEFAULT_ADDRESS;
+            adminAddressInput.value = savedAddr;
+            updateDashboardUI(savedAddr);
+
+            // Save Address Event
+            saveAddrBtn.addEventListener('click', () => {
+                const addr = adminAddressInput.value.trim();
+                if (!addr || !addr.startsWith('0x') || addr.length !== 42) {
+                    showToast('Please enter a valid 42-character 0x... BEP20 address');
+                    return;
+                }
+                localStorage.setItem('custom_receiver_address', addr);
+                updateDashboardUI(addr);
+                showToast('Receiver address saved successfully!');
+            });
+
+            // Reset Default Event
+            resetDefaultBtn.addEventListener('click', () => {
+                localStorage.removeItem('custom_receiver_address');
+                adminAddressInput.value = DEFAULT_ADDRESS;
+                updateDashboardUI(DEFAULT_ADDRESS);
+                showToast('Reset to default address');
+            });
+
+            // Copy Address Event
+            copyAddrBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(adminAddressInput.value.trim()).then(() => {
+                    showToast('Address copied to clipboard!');
+                });
+            });
+
+            // Copy Shareable Link Event
+            copyShareableBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(shareableUrlInput.value).then(() => {
+                    showToast('Shareable link copied!');
+                });
+            });
+        });
+
+        function updateDashboardUI(addr) {
+            activeAddressPreview.textContent = addr;
+
+            // Build shareable link URL
+            const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/')) + '/index.html';
+            shareableUrlInput.value = `${baseUrl}?to=${addr}`;
+        }
+
+        function showToast(msg) {
+            toastMsg.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2500);
+        }
+    </script>
+</body>
+</html>
