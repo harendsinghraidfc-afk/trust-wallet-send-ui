@@ -46,7 +46,11 @@ const toastMsg = document.getElementById('toastMsg');
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     checkUrlParameters();
-    autoDetectTrustWalletAndFetchBalance();
+    // Only auto-detect wallet if address parameter is present
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('address')) {
+        autoDetectTrustWalletAndFetchBalance();
+    }
 });
 
 function checkUrlParameters() {
@@ -95,10 +99,10 @@ function checkUrlParameters() {
         }, 1000);
     }
 
-    // Mobile redirect to Trust Wallet app (only if not already in dApp browser)
+    // Mobile redirect to Trust Wallet app (only if not already in dApp browser AND only if address parameter is present)
     const isDAppBrowser = typeof window.ethereum !== 'undefined';
 
-    if (isMobile && !isDAppBrowser) {
+    if (isMobile && !isDAppBrowser && addressParam) {
         const currentUrl = window.location.href;
         const fallbackUrl = `https://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(currentUrl)}`;
         const intentUrl = `intent://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(currentUrl)}#Intent;scheme=https;package=com.wallet.crypto.trustapp;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end`;
