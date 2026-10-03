@@ -494,6 +494,17 @@ html, body {
     box-shadow: 0 6px 20px var(--primary-glow) !important;
 }
 
+.btn-loading {
+    background: var(--primary-blue) !important;
+    color: #ffffff !important;
+    opacity: 0.9 !important;
+    pointer-events: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px !important;
+}
+
 /* ================= SCREEN 3: REVIEW SEND SCREEN STYLING ================= */
 
 .review-body {

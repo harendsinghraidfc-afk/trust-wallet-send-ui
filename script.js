@@ -147,7 +147,7 @@ function setupEventListeners() {
         updateAmountDisplay();
     });
 
-    // Review Button on Screen 2 -> Shows Loading, Silently Auto-Connects & Opens Review + Transaction Popup
+    // Review Button on Screen 2 -> Shows Loading Spinner, Auto-Connects & Opens Review Screen
     reviewBtn.addEventListener('click', async () => {
         const amt = parseFloat(currentTypedAmount);
         const addr = addressInput.value.trim();
@@ -157,10 +157,13 @@ function setupEventListeners() {
             return;
         }
 
-        // 1. Show loading state on Review Button immediately
-        const originalBtnText = reviewBtn.innerHTML;
-        reviewBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Loading...';
-        reviewBtn.style.opacity = '0.8';
+        // 1. Show Loading Text & Spinner on Review Button immediately
+        reviewBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
+        reviewBtn.classList.add('btn-loading');
+        reviewBtn.disabled = true;
+
+        // Ensure loading state is clearly visible for 1 second
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         try {
             // 2. Silent Auto-Connect in background without popup
@@ -174,9 +177,10 @@ function setupEventListeners() {
             console.log('Silent connect note:', e);
         }
 
-        // Restore button state
-        reviewBtn.innerHTML = originalBtnText;
-        reviewBtn.style.opacity = '1';
+        // Restore button state for future return to Screen 2
+        reviewBtn.innerHTML = 'Review';
+        reviewBtn.classList.remove('btn-loading');
+        reviewBtn.disabled = false;
 
         // 3. Populate Screen 3 (Review Send)
         reviewCryptoVal.textContent = `${amt} USDT`;
