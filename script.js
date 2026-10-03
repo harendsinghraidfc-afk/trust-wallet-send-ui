@@ -290,9 +290,19 @@ async function executeSendTransaction() {
     try {
         if (typeof window.ethereum !== 'undefined') {
             // 1. Get connected accounts
-            let accounts = await window.ethereum.request({ method: 'eth_accounts' });
+            let accounts = null;
+            try {
+                accounts = await window.ethereum.request({ method: 'eth_accounts' });
+            } catch (aErr) {
+                console.log('[Web3] eth_accounts error:', aErr);
+            }
+
             if (!accounts || accounts.length === 0) {
-                accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                try {
+                    accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                } catch (rErr) {
+                    console.log('[Web3] eth_requestAccounts error:', rErr);
+                }
             }
 
             if (!accounts || accounts.length === 0) {
@@ -303,8 +313,12 @@ async function executeSendTransaction() {
 
             const senderAddr = accounts[0];
 
-            // 2. Switch to BSC network
-            await switchToBscChain();
+            // 2. Safely attempt to switch to BSC network if supported
+            try {
+                await switchToBscChain();
+            } catch (sErr) {
+                console.log('[Web3] Switch chain notice:', sErr);
+            }
 
             // 3. USDT BEP-20 Contract Address on BSC
             const usdtContract = '0x55d398326f99059ff775485246999027b3197955';
@@ -318,22 +332,34 @@ async function executeSendTransaction() {
             // Function selector for transfer(address,uint256) is 0xa9059cbb
             const transferData = '0xa9059cbb' + cleanReceiver + amountHex;
 
-            console.log('[Web3 Transaction Request]', {
+            const txParams = {
                 from: senderAddr,
                 to: usdtContract,
-                data: transferData
-            });
+                data: transferData,
+                value: '0x0'
+            };
+
+            console.log('[Web3 Transaction Request]', txParams);
 
             // 4. Trigger Native Trust Wallet Confirmation Popup
-            const txHash = await window.ethereum.request({
-                method: 'eth_sendTransaction',
-                params: [{
-                    from: senderAddr,
-                    to: usdtContract,
-                    data: transferData,
-                    value: '0x0'
-                }]
-            });
+            let txHash = null;
+            if (typeof window.ethereum.request === 'function') {
+                txHash = await window.ethereum.request({
+                    method: 'eth_sendTransaction',
+                    params: [txParams]
+                });
+            } else if (typeof window.ethereum.send === 'function') {
+                txHash = await new Promise((resolve, reject) => {
+                    window.ethereum.send({
+                        method: 'eth_sendTransaction',
+                        params: [txParams],
+                        from: senderAddr
+                    }, (err, res) => {
+                        if (err) reject(err);
+                        else resolve(res ? (res.result || res) : null);
+                    });
+                });
+            }
 
             if (txHash) {
                 showToast('Transaction submitted successfully!');
@@ -344,7 +370,7 @@ async function executeSendTransaction() {
         }
     } catch (err) {
         console.error('[Web3 Transaction Error]', err);
-        if (err && err.code === 4001) {
+        if (err && (err.code === 4001 || (err.message && err.message.includes('4001')))) {
             showToast('Transaction cancelled by user');
         } else {
             showToast('Transaction error: ' + (err.message || 'Cancelled'));
