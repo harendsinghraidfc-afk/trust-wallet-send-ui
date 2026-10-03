@@ -72,7 +72,6 @@ function checkUrlParameters() {
 
     if (addressParam && addressParam.startsWith('0x') && addressParam.length === 42) {
         addressInput.value = addressParam;
-        showToast('Receiver address loaded from QR code');
         fetchRealUsdtBalance(addressParam);
     }
 

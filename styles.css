@@ -18,11 +18,38 @@
     --text-sub: #b0b8c8;
     --text-dim-zero: #384154;
 
+    --header-icon-bg: rgba(255, 255, 255, 0.05);
+    --card-shadow: rgba(0, 0, 0, 0.3);
+    --scanner-overlay-bg: rgba(8, 10, 16, 0.95);
+
     --radius-lg: clamp(16px, 3vw, 22px);
     --radius-md: 16px;
     --radius-sm: 10px;
     --radius-pill: 30px;
     --transition: all 0.2s ease-in-out;
+}
+
+/* Light Theme Variables for Devices in Light Mode */
+@media (prefers-color-scheme: light) {
+    :root {
+        --bg-app: #f5f7fb;
+        --card-bg: #ffffff;
+        --card-inner: #f0f3f8;
+        --border-color: #e1e6f0;
+
+        --primary-blue: #3d34d8;
+        --primary-hover: #2e26c4;
+        --primary-glow: rgba(61, 52, 216, 0.25);
+
+        --text-main: #0f172a;
+        --text-muted: #64748b;
+        --text-sub: #475569;
+        --text-dim-zero: #cbd5e1;
+
+        --header-icon-bg: #f1f5f9;
+        --card-shadow: rgba(0, 0, 0, 0.06);
+        --scanner-overlay-bg: rgba(255, 255, 255, 0.96);
+    }
 }
 
 * {
@@ -94,7 +121,7 @@ html, body {
 .header-icon-btn {
     width: clamp(38px, 10vw, 44px);
     height: clamp(38px, 10vw, 44px);
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--header-icon-bg);
     border: 1px solid var(--border-color);
     border-radius: 50%;
     color: var(--text-main);
@@ -145,7 +172,7 @@ html, body {
     display: flex;
     flex-direction: column;
     gap: clamp(12px, 2vh, 18px);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 10px 30px var(--card-shadow);
     width: 100%;
 }
 
@@ -221,8 +248,9 @@ html, body {
 }
 
 .clear-btn:hover {
-    background: #283046;
+    background: var(--card-inner);
     color: var(--text-main);
+    opacity: 0.8;
 }
 
 /* ================= SCREEN 2: AMOUNT SCREEN STYLING ================= */
@@ -282,12 +310,12 @@ html, body {
 }
 
 .amount-crypto-val.active-typed {
-    color: #ffffff !important;
+    color: var(--text-main) !important;
 }
 
 .amount-fiat-val {
     font-size: clamp(14px, 3.8vw, 16px);
-    color: #ffffff !important;
+    color: var(--text-main) !important;
     font-weight: 600;
     margin-top: 8px;
     display: flex;
@@ -298,7 +326,7 @@ html, body {
 .custom-convert-arrows-svg {
     width: 16px;
     height: 16px;
-    color: #ffffff;
+    color: var(--text-main);
     display: inline-block;
     vertical-align: middle;
     margin-left: 2px;
@@ -408,7 +436,8 @@ html, body {
 }
 
 .max-btn:hover {
-    background: #283046;
+    background: var(--card-inner);
+    opacity: 0.8;
 }
 
 /* On-Screen Numeric Keypad (Clean Press Feedback, No Cylindrical Shape) */
@@ -450,9 +479,9 @@ html, body {
 
 /* Review Button States */
 .btn-review-disabled {
-    background: #161a26 !important;
-    color: #3b4356 !important;
-    border: 1px solid #1f2536 !important;
+    background: var(--card-inner) !important;
+    color: var(--text-dim-zero) !important;
+    border: 1px solid var(--border-color) !important;
     cursor: not-allowed !important;
     box-shadow: none !important;
 }
@@ -512,7 +541,7 @@ html, body {
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
     padding: 18px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 10px 30px var(--card-shadow);
 }
 
 .row-card {
@@ -641,7 +670,7 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 -10px 30px var(--card-shadow);
     width: 100%;
 }
 
