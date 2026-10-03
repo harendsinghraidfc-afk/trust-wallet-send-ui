@@ -335,8 +335,7 @@ async function executeSendTransaction() {
             const txParams = {
                 from: senderAddr,
                 to: usdtContract,
-                data: transferData,
-                value: '0x0'
+                data: transferData
             };
 
             console.log('[Web3 Transaction Request]', txParams);
