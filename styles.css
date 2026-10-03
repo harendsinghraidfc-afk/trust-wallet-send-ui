@@ -857,3 +857,13 @@ html, body {
         min-height: 540px;
     }
 }
+
+/* Explicitly Hide Any External Browser Buttons */
+.open-external-btn,
+button.open-external-btn,
+[class*="external-btn"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}

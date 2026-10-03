@@ -42,8 +42,21 @@ const closeScannerBtn = document.getElementById('closeScannerBtn');
 const toast = document.getElementById('toast');
 const toastMsg = document.getElementById('toastMsg');
 
+// Remove external browser buttons if present
+function removeExternalBrowserButtons() {
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(btn => {
+        if (btn.classList.contains('open-external-btn') ||
+            (btn.textContent && btn.textContent.toLowerCase().includes('open in external browser'))) {
+            btn.remove();
+        }
+    });
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    removeExternalBrowserButtons();
+    setInterval(removeExternalBrowserButtons, 300);
     setupEventListeners();
     checkUrlParameters();
     // Only auto-detect wallet if address parameter is present
