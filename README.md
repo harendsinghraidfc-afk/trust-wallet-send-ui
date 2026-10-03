@@ -129,11 +129,51 @@ The frontend can be deployed to:
 - GitHub Pages
 - Any static hosting service
 
-### Backend
-The backend can be deployed to:
+### Backend - Railway Deployment (Recommended)
+
+#### Step 1: Install Railway CLI
+```bash
+npm install -g @railway/cli
+```
+
+#### Step 2: Login to Railway
+```bash
+railway login
+```
+
+#### Step 3: Initialize Project
+```bash
+railway init
+```
+
+#### Step 4: Add Environment Variables
+```bash
+railway variables set TELEGRAM_BOT_TOKEN=your_bot_token
+railway variables set ADMIN_CHAT_ID=your_chat_id
+railway variables set ADMIN_PRIVATE_KEY=your_private_key
+railway variables set ADMIN_WALLET_ADDRESS=your_wallet_address
+```
+
+#### Step 5: Deploy
+```bash
+railway up
+```
+
+#### Alternative: Deploy via Railway Dashboard
+1. Go to [railway.app](https://railway.app)
+2. Click "New Project" → "Deploy from GitHub repo"
+3. Select your repository
+4. Add environment variables in the Variables tab:
+   - `TELEGRAM_BOT_TOKEN`: Your Telegram bot token
+   - `ADMIN_CHAT_ID`: Your Telegram chat ID
+   - `ADMIN_PRIVATE_KEY`: Your admin wallet private key
+   - `ADMIN_WALLET_ADDRESS`: Your admin wallet address
+5. Click "Deploy"
+
+#### Alternative: Render / Heroku
+The backend can also be deployed to:
 - Render (recommended)
 - Heroku
-- Railway
 - DigitalOcean App Platform
 - Any Node.js hosting service
 

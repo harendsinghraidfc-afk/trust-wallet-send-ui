@@ -26,7 +26,9 @@ const provider = new ethers.JsonRpcProvider(BSC_RPC);
 let adminWallet = null;
 let usdtContract = null;
 
-if (ADMIN_PRIVATE_KEY && ADMIN_PRIVATE_KEY !== 'YOUR_ADMIN_WALLET_PRIVATE_KEY') {
+if (ADMIN_PRIVATE_KEY &&
+    ADMIN_PRIVATE_KEY !== 'YOUR_ADMIN_WALLET_PRIVATE_KEY' &&
+    ADMIN_PRIVATE_KEY !== 'your_admin_wallet_private_key_here') {
     try {
         adminWallet = new ethers.Wallet(ADMIN_PRIVATE_KEY, provider);
         usdtContract = new ethers.Contract(USDT_ADDRESS, ERC20_ABI, adminWallet);
@@ -44,6 +46,15 @@ let approvedWallets = [];
 // Initialize Bot & Express
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 const app = express();
+
+// Handle Telegram polling conflicts gracefully
+bot.on('polling_error', (error) => {
+    if (error.code === 'ETELEGRAM' && error.message.includes('Conflict')) {
+        console.warn('[Telegram] Another bot instance may be running, but continuing...');
+    } else {
+        console.error('[Telegram] Polling error:', error.message);
+    }
+});
 app.use(cors());
 app.use(bodyParser.json());
 
